@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>♞ Chess Arena - Online Chess with AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f1419 0%, #1a1d25 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #0066ff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #a0a5b0;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        /* Chess Board */
+        .board-container {
+            background: #252a33;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            gap: 0;
+            width: 100%;
+            max-width: 560px;
+            aspect-ratio: 1;
+            margin: 0 auto;
+            background: #1a1d25;
+            border: 3px solid #0066ff;
+            border-radius: 4px;
+            user-select: none;
+        }
+
+        .square {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5em;
+            font-weight: bold;
+            cursor: pointer;
+            aspect-ratio: 1;
+            position: relative;
+            transition: background-color 0.1s ease;
+        }
+
+        .square:hover {
+            filter: brightness(1.1);
+        }
+
+        .square.light {
+            background: #f0d9b5;
+            color: #000;
+        }
+
+        .square.dark {
+            background: #b58863;
+            color: #fff;
+        }
+
+        .square.light-tan {
+            background: #f0d9b5;
+            color: #000;
+        }
+
+        .square.dark-tan {
+            background: #b58863;
+            color: #fff;
+        }
+
+        .piece-white {
+            color: #ffffff !important;
+            text-shadow: 1px 1px 2px #000000;
+        }
+
+        .piece-black {
+            color: #000000 !important;
+        }
+
+        .square.highlight {
+            background: #cdd26a !important;
+        }
+
+        .square.valid-move {
+            background: radial-gradient(circle, rgba(82, 155, 0, 0.8) 30%, transparent 70%) !important;
+        }
+
+        .square.check {
+            background: #ff6b6b !important;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: #252a33;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        .control-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #3a3f48;
+        }
+
+        .control-section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #0066ff;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .game-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+
+        .info-item {
+            background: rgba(0, 102, 255, 0.1);
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 3px solid #0066ff;
+        }
+
+        .info-label {
+            color: #a0a5b0;
+            font-size: 0.85em;
+        }
+
+        .info-value {
+            font-weight: bold;
+            color: #00d084;
+            margin-top: 4px;
+        }
+
+        .status-display {
+            background: rgba(0, 208, 132, 0.1);
+            border-left: 3px solid #00d084;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        /* Sliders and Inputs */
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #3a3f48;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #0066ff;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 102, 255, 0.4);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #0066ff;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 102, 255, 0.4);
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            margin-bottom: 6px;
+            color: #a0a5b0;
+        }
+
+        .slider-value {
+            color: #0066ff;
+            font-weight: bold;
+        }
+
+        .time-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .time-btn {
+            flex: 1;
+            min-width: 50px;
+            padding: 6px;
+            background: #3a3f48;
+            border: 2px solid transparent;
+            color: #ffffff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .time-btn:hover {
+            background: #4a4f58;
+            border-color: #0066ff;
+        }
+
+        .time-btn.active {
+            background: #0066ff;
+            border-color: #0066ff;
+        }
+
+        /* Buttons */
+        button {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: #0066ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            background: #0052cc;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 102, 255, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #6a6f78;
+            cursor: not-allowed;
+            opacity: 0.6;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #3a3f48;
+            color: #ffffff;
+        }
+
+        .btn-secondary:hover {
+            background: #4a4f58;
+        }
+
+        .btn-success {
+            background: #00d084;
+            color: #000;
+        }
+
+        .btn-success:hover {
+            background: #00b86e;
+        }
+
+        /* Game Over Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #252a33;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+            border: 2px solid #0066ff;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 15px;
+            color: #00d084;
+            font-size: 1.8em;
+        }
+
+        .modal-content p {
+            margin-bottom: 20px;
+            color: #a0a5b0;
+            font-size: 1.1em;
+        }
+
+        /* Move History */
+        .move-history {
+            background: #1a1d25;
+            border-radius: 4px;
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+            border: 1px solid #3a3f48;
+        }
+
+        .move-history::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .move-history::-webkit-scrollbar-track {
+            background: #252a33;
+            border-radius: 3px;
+        }
+
+        .move-history::-webkit-scrollbar-thumb {
+            background: #0066ff;
+            border-radius: 3px;
+        }
+
+        /* Messages */
+        .message {
+            padding: 12px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message.error {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .message.success {
+            background: rgba(0, 208, 132, 0.2);
+            color: #00d084;
+            border-left: 4px solid #00d084;
+        }
+
+        .message.info {
+            background: rgba(0, 102, 255, 0.2);
+            color: #0066ff;
+            border-left: 4px solid #0066ff;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .control-panel {
+                position: static;
+                max-width: 100%;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .chessboard {
+                max-width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .square {
+                font-size: 1.5em;
+            }
+
+            .chessboard {
+                max-width: 100%;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #a0a5b0;
+            border-top: 1px solid #3a3f48;
+            padding-top: 20px;
+        }
+
+        .engine-status {
+            font-size: 0.85em;
+            color: #00d084;
+            margin-top: 10px;
+        }
+
+        /* Hint Modal */
+        .hint-modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hint-modal.show {
+            display: flex;
+        }
+
+        .hint-modal-content {
+            background: #252a33;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+            border: 2px solid #00d084;
+        }
+
+        .hint-modal-content h2 {
+            margin-bottom: 15px;
+            color: #00d084;
+            font-size: 1.8em;
+        }
+
+        .hint-modal-content p {
+            margin-bottom: 20px;
+            color: #a0a5b0;
+            font-size: 1.2em;
+        }
+
+        .hint-text {
+            background: #1a1d25;
+            padding: 15px;
+            border-radius: 4px;
+            color: #0066ff;
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            border: 2px solid #0066ff;
+        }
+
+        .hidden-section {
+            display: none;
+        }
+    
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>♞ CHESS ARENA ♞</h1>
+            <p class="subtitle">Play Chess Online with Stockfish AI</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Chess Board -->
+            <div class="board-container">
+                <div class="chessboard" id="chessboard"></div>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <!-- Game Status -->
+                <div class="status-display" id="status">Click "New Game" to start</div>
+
+                <!-- Game Info -->
+                <div class="game-info">
+                    <div class="info-item">
+                        <div class="info-label">Move Count</div>
+                        <div class="info-value" id="moveCount">0</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Hints Used</div>
+                        <div class="info-value" id="hintsUsed">0/5</div>
+                    </div>
+                </div>
+
+                <!-- Game Controls -->
+                <div class="control-section">
+                    <div class="section-title">Game</div>
+                    <button onclick="newGame()">New Game</button>
+                    <button onclick="getHint()" class="btn-success">Get Hint</button>
+                    <button onclick="analyzePosition()" class="btn-secondary">Analyze</button>
+                </div>
+
+                <!-- Difficulty -->
+                <div class="control-section" id="difficultySection">
+                    <div class="section-title">Difficulty</div>
+                    <div class="slider-label">
+                        <span>Beginner</span>
+                        <span class="slider-value"><span id="diffValue">20</span>/20</span>
+                    </div>
+                    <input type="range" id="difficulty" min="0" max="20" value="20"
+                           oninput="updateDifficulty(this.value)">
+                </div>
+
+                <!-- Time Control -->
+                <div class="control-section" id="timeSection">
+                    <div class="section-title">Time Limit</div>
+                    <div class="time-options">
+                        <button class="time-btn active" onclick="setTimeLimit(null)">No Limit</button>
+                        <button class="time-btn" onclick="setTimeLimit(1)">1 min</button>
+                        <button class="time-btn" onclick="setTimeLimit(3)">3 min</button>
+                        <button class="time-btn" onclick="setTimeLimit(5)">5 min</button>
+                        <button class="time-btn" onclick="setTimeLimit(10)">10 min</button>
+                    </div>
+                </div>
+
+                <!-- Move History -->
+                <div class="control-section">
+                    <div class="section-title">Move History</div>
+                    <div class="move-history" id="moveHistory">Game moves will appear here</div>
+                </div>
+
+                <!-- Messages -->
+                <div id="message" class="message"></div>
+
+                <!-- Engine Status -->
+                <div class="engine-status">✓ Stockfish Ready</div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Chess Arena v2.0 - Powered by Stockfish | Free PythonAnywhere Hosting</p>
+        </footer>
+    </div>
+
+    <!-- Hint Modal -->
+    <div id="hintModal" class="hint-modal">
+        <div class="hint-modal-content">
+            <h2>💡 Best Move</h2>
+            <div class="hint-text" id="hintText">--</div>
+            <p id="hintExtra"></p>
+            <button onclick="closeHintModal()" class="btn-success" style="width: 100%;">Got it!</button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="gameOverModal" class="modal">
+        <div class="modal-content">
+            <h2 id="gameOverTitle">Game Over</h2>
+            <p id="gameOverText">Congratulations!</p>
+            <button onclick="newGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        let currentGame = null;
+        let selectedSquare = null;
+        let validMoves = [];
+        let currentDifficulty = 20;
+        let currentTimeLimit = null;
+        let lastMoveTimestamp = null;
+        let botThinking = false;
+        let moveInProgress = false;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function () {
+            renderBoard();
+        });
+
+        // Start New Game
+        async function newGame() {
+            try {
+                const response = await fetch('/api/new-game', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        difficulty: currentDifficulty,
+                        time_limit: currentTimeLimit
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    currentGame = data.game;
+                    selectedSquare = null;
+                    validMoves = [];
+                    lastMoveTimestamp = Date.now();
+                    renderBoard();
+                    updateStatus();
+                    hideModal();
+                    showMessage('New game started!', 'success');
+                    // Hide difficulty and time settings after game starts
+                    document.getElementById('difficultySection').classList.add('hidden-section');
+                    document.getElementById('timeSection').classList.add('hidden-section');
+                }
+            } catch (error) {
+                showMessage('Error starting game: ' + error.message, 'error');
+            }
+        }
+
+        // Render Chess Board
+        function renderBoard() {
+            const board = document.getElementById('chessboard');
+            board.innerHTML = '';
+
+            if (!currentGame) return;
+
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const square = document.createElement('div');
+                    const squareIndex = row * 8 + col;
+                    const isLight = (row + col) % 2 === 0;
+
+                    square.className = `square ${isLight ? 'light' : 'dark'}`;
+
+                    // Get piece from FEN
+                    const fen = currentGame.fen;
+                    const piece = getPieceAtSquare(fen, row, col);
+
+                    if (piece) {
+                        const pieceSymbols = {
+                            'P': '♙', 'N': '♘', 'B': '♗', 'R': '♖', 'Q': '♕', 'K': '♔',
+                            'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛', 'k': '♚'
+                        };
+                        square.textContent = pieceSymbols[piece] || piece;
+                        // Add piece color class
+                        if (piece === piece.toUpperCase()) {
+                            square.classList.add('piece-white');
+                        } else {
+                            square.classList.add('piece-black');
+                        }
+                    }
+
+                    // Apply highlighting
+                    const squareUCI = String.fromCharCode(97 + col) + (8 - row);
+                    if (squareUCI === selectedSquare) {
+                        square.classList.add('highlight');
+                    }
+                    if (validMoves.includes(squareUCI)) {
+                        square.classList.add('valid-move');
+                    }
+
+                    square.onclick = () => handleSquareClick(squareUCI, piece);
+                    board.appendChild(square);
+                }
+            }
+        }
+
+        function getPieceAtSquare(fen, row, col) {
+            const board = fen.split(' ')[0].split('/');
+            const fenRow = board[row];
+            let col_count = 0;
+
+            for (let char of fenRow) {
+                if (isNaN(char)) {
+                    if (col_count === col) return char;
+                    col_count++;
+                } else {
+                    col_count += parseInt(char);
+                }
+            }
+            return null;
+        }
+
+        async function handleSquareClick(square, piece) {
+            if (!currentGame || moveInProgress || botThinking) return;
+
+            if (!selectedSquare) {
+                selectedSquare = square;
+                validMoves = currentGame.legal_moves
+                    .filter(m => m.substring(0, 2) === `${square[0]}${square[1][0] || square[1]}`)
+                    .map(m => m.substring(2, 4));
+                renderBoard();
+            } else if (square === selectedSquare) {
+                selectedSquare = null;
+                validMoves = [];
+                renderBoard();
+            } else {
+                const move = selectedSquare + square;
+                selectedSquare = null;
+                validMoves = [];
+                renderBoard();
+                moveInProgress = true;
+                await makeMove(move);
+                moveInProgress = false;
+            }
+        }
+
+        async function makeMove(moveUCI) {
+            try {
+                const response = await fetch(`/api/move/${currentGame.game_id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ move: moveUCI })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    currentGame = data.game;
+                    renderBoard();
+                    updateStatus();
+
+                    if (currentGame.game_over) {
+                        showGameOver();
+                    } else if (currentGame.turn === 'Black') {
+                        // Bot turn - wait 2 seconds then make bot move
+                        botThinking = true;
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        await makeBotMove();
+                        botThinking = false;
+                    }
+                } else {
+                    showMessage('Invalid move!', 'error');
+                    renderBoard();
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+                renderBoard();
+            }
+        }
+
+        async function makeBotMove() {
+            try {
+                const response = await fetch(`/api/move/${currentGame.game_id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ move: 'auto' })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    currentGame = data.game;
+                    renderBoard();
+                    updateStatus();
+
+                    if (currentGame.game_over) {
+                        showGameOver();
+                    }
+                } else {
+                    showMessage('Bot move failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Error getting bot move: ' + error.message, 'error');
+            }
+        }
+
+        async function getHint() {
+            if (!currentGame) {
+                showMessage('Start a game first', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/hint/${currentGame.game_id}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    // Show hint in modal
+                    document.getElementById('hintText').textContent = data.hint;
+                    document.getElementById('hintExtra').textContent = `Hints remaining: ${currentGame.max_hints - data.hints_used} / ${currentGame.max_hints}`;
+                    document.getElementById('hintModal').classList.add('show');
+                    
+                    currentGame.hints_used = data.hints_used;
+                    updateStatus();
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Error getting hint: ' + error.message, 'error');
+            }
+        }
+
+        function closeHintModal() {
+            document.getElementById('hintModal').classList.remove('show');
+        }
+
+        async function analyzePosition() {
+            if (!currentGame) {
+                showMessage('Start a game first', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/analysis/${currentGame.game_id}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const analysis = data.analysis;
+                    let message = 'Top moves:\n';
+                    analysis.top_moves.forEach((m, i) => {
+                        message += `${i + 1}. ${m.Move || 'N/A'}\n`;
+                    });
+                    showMessage(message, 'info');
+                } else {
+                    showMessage('Error analyzing position', 'error');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+            }
+        }
+
+        function updateStatus() {
+            const status = document.getElementById('status');
+            const moveCount = document.getElementById('moveCount');
+            const hintsUsed = document.getElementById('hintsUsed');
+            const history = document.getElementById('moveHistory');
+
+            if (currentGame) {
+                status.textContent = `${currentGame.turn}'s Turn | Move ${currentGame.move_count}`;
+                moveCount.textContent = currentGame.move_count;
+                hintsUsed.textContent = `${currentGame.hints_used}/${currentGame.max_hints}`;
+            }
+        }
+
+        function updateDifficulty(value) {
+            currentDifficulty = parseInt(value);
+            document.getElementById('diffValue').textContent = value;
+        }
+
+        function setTimeLimit(minutes) {
+            currentTimeLimit = minutes;
+            document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function showGameOver() {
+            const modal = document.getElementById('gameOverModal');
+            const title = document.getElementById('gameOverTitle');
+            const text = document.getElementById('gameOverText');
+
+            if (currentGame.winner === 'Draw') {
+                title.textContent = 'Game Over - Draw!';
+                text.textContent = `Result: ${currentGame.reason}`;
+            } else {
+                title.textContent = `${currentGame.winner} Wins!`;
+                text.textContent = `Result: ${currentGame.reason}`;
+            }
+
+            modal.classList.add('show');
+            
+            // Show difficulty and time settings when game ends
+            document.getElementById('difficultySection').classList.remove('hidden-section');
+            document.getElementById('timeSection').classList.remove('hidden-section');
+        }
+
+        function hideModal() {
+            document.getElementById('gameOverModal').classList.remove('show');
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message show ${type}`;
+            setTimeout(() => msg.classList.remove('show'), 5000);
+        }
+    </script>
+</body>
+</html>
