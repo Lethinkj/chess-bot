@@ -7,6 +7,7 @@ from flask import Flask, render_template, request, jsonify
 import chess
 import os
 import sys
+import random
 from typing import Optional, Dict, List
 
 try:
@@ -98,6 +99,13 @@ class ChessGame:
     def get_engine_move(self) -> Optional[str]:
         """Get engine's best move and make it."""
         best_move = self.get_best_move()
+        
+        # If Stockfish unavailable, make random legal move
+        if not best_move:
+            legal_moves = list(self.board.legal_moves)
+            if legal_moves:
+                best_move = random.choice(legal_moves).uci()
+        
         if best_move and self.make_move(best_move):
             return best_move
         return None
@@ -108,7 +116,16 @@ class ChessGame:
             return None
         
         self.hints_used += 1
-        return self.get_best_move()
+        
+        hint = self.get_best_move()
+        
+        # If Stockfish unavailable, suggest random legal move
+        if not hint:
+            legal_moves = list(self.board.legal_moves)
+            if legal_moves:
+                hint = random.choice(legal_moves).uci()
+        
+        return hint
     
     def _check_game_over(self):
         """Check if game is over."""
