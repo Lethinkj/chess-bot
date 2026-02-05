@@ -7,7 +7,6 @@ from flask import Flask, render_template, request, jsonify
 import chess
 import os
 import sys
-import random
 from typing import Optional, Dict, List
 
 try:
@@ -72,16 +71,64 @@ class ChessGame:
         return None
     
     def get_best_move(self, depth: int = 15) -> Optional[str]:
-        """Get best move from Stockfish."""
-        if not self.stockfish:
-            return None
+        """Get best move from Stockfish or fallback to heuristic."""
+        if self.stockfish:
+            try:
+                self.stockfish.set_fen_position(self.board.fen())
+                return self.stockfish.get_best_move_time(1000)
+            except Exception as e:
+                print(f"Error getting best move: {e}")
         
-        try:
-            self.stockfish.set_fen_position(self.board.fen())
-            return self.stockfish.get_best_move_time(1000)
-        except Exception as e:
-            print(f"Error getting best move: {e}")
-            return None
+        # Fallback: smarter move selection without Stockfish
+        return self._get_heuristic_move()
+    
+    def _get_heuristic_move(self) -> Optional[str]:
+        """Get a reasonable move using chess heuristics (no engine needed)."""
+        best_move = None
+        best_score = -float('inf')
+        
+        for move in self.board.legal_moves:
+            score = 0
+            
+            # Capture opponent pieces (highest priority)
+            if self.board.is_capture(move):
+                captured_piece = self.board.piece_at(move.to_square)
+                if captured_piece:
+                    # Value pieces: pawn=1, knight=3, bishop=3, rook=5, queen=9
+                    piece_values = {
+                        chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3,
+                        chess.ROOK: 5, chess.QUEEN: 9
+                    }
+                    score += piece_values.get(captured_piece.piece_type, 1) * 100
+            
+            # Avoid moving into capture
+            self.board.push(move)
+            if self.board.is_capture():
+                attacking_piece = self.board.piece_at(self.board.peek().to_square)
+                if attacking_piece:
+                    piece_values = {
+                        chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3,
+                        chess.ROOK: 5, chess.QUEEN: 9
+                    }
+                    score -= piece_values.get(attacking_piece.piece_type, 1) * 50
+            self.board.pop()
+            
+            # Check move
+            self.board.push(move)
+            if self.board.is_check():
+                score += 50
+            self.board.pop()
+            
+            # Control center squares (d4, e4, d5, e5)
+            center_squares = {chess.D4, chess.E4, chess.D5, chess.E5}
+            if move.to_square in center_squares:
+                score += 20
+            
+            if score > best_score:
+                best_score = score
+                best_move = move
+        
+        return best_move.uci() if best_move else None
     
     def make_move(self, move_uci: str) -> bool:
         """Make a move on the board."""
@@ -97,14 +144,8 @@ class ChessGame:
         return False
     
     def get_engine_move(self) -> Optional[str]:
-        """Get engine's best move and make it."""
+        """Get best move and make it."""
         best_move = self.get_best_move()
-        
-        # If Stockfish unavailable, make random legal move
-        if not best_move:
-            legal_moves = list(self.board.legal_moves)
-            if legal_moves:
-                best_move = random.choice(legal_moves).uci()
         
         if best_move and self.make_move(best_move):
             return best_move
@@ -116,16 +157,7 @@ class ChessGame:
             return None
         
         self.hints_used += 1
-        
-        hint = self.get_best_move()
-        
-        # If Stockfish unavailable, suggest random legal move
-        if not hint:
-            legal_moves = list(self.board.legal_moves)
-            if legal_moves:
-                hint = random.choice(legal_moves).uci()
-        
-        return hint
+        return self.get_best_move()
     
     def _check_game_over(self):
         """Check if game is over."""
