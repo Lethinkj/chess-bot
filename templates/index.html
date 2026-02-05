@@ -819,7 +819,7 @@
             if (!selectedSquare) {
                 selectedSquare = square;
                 validMoves = currentGame.legal_moves
-                    .filter(m => m.substring(0, 2) === `${square[0]}${square[1][0] || square[1]}`)
+                    .filter(m => m.substring(0, 2) === square)
                     .map(m => m.substring(2, 4));
                 renderBoard();
             } else if (square === selectedSquare) {
@@ -827,37 +827,38 @@
                 validMoves = [];
                 renderBoard();
             } else {
-                let move = selectedSquare + square;
+                // Check if this is a promotion move
+                const fromSquare = selectedSquare;
+                const toSquare = square;
+                const moveBase = fromSquare + toSquare;
                 
-                // Check for pawn promotion
-                const sourcePiece = getPieceAtSquare(currentGame.fen, 
-                    Math.floor((parseInt(selectedSquare[1]) - 1) / 8), 
-                    selectedSquare.charCodeAt(0) - 97);
+                // Find all legal moves matching this from-to
+                const matchingMoves = currentGame.legal_moves.filter(m => 
+                    m.substring(0, 4) === moveBase
+                );
                 
-                // Pawn is 'P' (white) or 'p' (black)
-                if (Math.abs(sourcePiece.charCodeAt(0) - 'p'.charCodeAt(0)) === 32 || 
-                    sourcePiece.toLowerCase() === 'p') {
-                    
-                    // Check if destination is promotion rank (row 1 or row 8)
-                    const destRow = parseInt(square[1]);
-                    if (destRow === 8 || destRow === 1) {
-                        // Ask user which piece to promote to
-                        const promotion = await showPromotionDialog();
-                        if (!promotion) {
-                            selectedSquare = null;
-                            validMoves = [];
-                            renderBoard();
-                            return;
-                        }
-                        move += promotion;
+                let finalMove = moveBase;
+                
+                // If multiple moves match (promotion), ask user to choose
+                if (matchingMoves.length > 1) {
+                    // This is a promotion - ask which piece
+                    const promotion = await showPromotionDialog();
+                    if (!promotion) {
+                        selectedSquare = null;
+                        validMoves = [];
+                        renderBoard();
+                        return;
                     }
+                    finalMove = moveBase + promotion;
+                } else if (matchingMoves.length === 1) {
+                    finalMove = matchingMoves[0];
                 }
                 
                 selectedSquare = null;
                 validMoves = [];
                 renderBoard();
                 moveInProgress = true;
-                await makeMove(move);
+                await makeMove(finalMove);
                 moveInProgress = false;
             }
         }

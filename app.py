@@ -83,63 +83,113 @@ class ChessGame:
         return self._get_heuristic_move()
     
     def _get_heuristic_move(self) -> Optional[str]:
-        """Get a reasonable move using chess heuristics (no engine needed)."""
+        """Get intelligent move using deep evaluation (no engine needed)."""
         best_move = None
         best_score = -float('inf')
         
         for move in self.board.legal_moves:
-            score = 0
-            
-            # 1. Checkmate in one move = instant win
-            self.board.push(move)
-            if self.board.is_checkmate():
-                self.board.pop()
-                return move.uci()
-            
-            # 2. Escape check
-            in_check_after = self.board.is_check()
-            self.board.pop()
-            
-            if self.board.is_check() and not in_check_after:
-                score += 1000  # High priority to escape check
-            
-            # 3. Capture opponent pieces (with piece values)
-            if self.board.is_capture(move):
-                captured_piece = self.board.piece_at(move.to_square)
-                if captured_piece:
-                    piece_values = {
-                        chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3,
-                        chess.ROOK: 5, chess.QUEEN: 9
-                    }
-                    score += piece_values.get(captured_piece.piece_type, 1) * 100
-            
-            # 4. Give check to opponent
-            self.board.push(move)
-            if self.board.is_check():
-                score += 150
-            self.board.pop()
-            
-            # 5. Control center
-            center_squares = [chess.D4, chess.E4, chess.D5, chess.E5]
-            if move.to_square in center_squares:
-                score += 30
-            
-            # 6. Develop pieces (move from back rank)
-            if move.from_square < 8 or move.from_square >= 56:
-                score += 10
-            
-            # 7. Pawn promotion
-            moving_piece = self.board.piece_at(move.from_square)
-            if moving_piece and moving_piece.piece_type == chess.PAWN:
-                if (self.board.turn == chess.WHITE and move.to_square >= 56) or \
-                   (self.board.turn == chess.BLACK and move.to_square < 8):
-                    score += 5000  # Very high priority
+            score = self._evaluate_move(move)
             
             if score > best_score:
                 best_score = score
                 best_move = move
         
         return best_move.uci() if best_move else None
+    
+    def _evaluate_move(self, move) -> float:
+        """Evaluate a move with detailed scoring."""
+        score = 0.0
+        
+        # 1. CHECKMATE = Instant win
+        self.board.push(move)
+        if self.board.is_checkmate():
+            self.board.pop()
+            return 100000
+        
+        # 2. Check if move puts us in check (invalid logically for human but python-chess prevents)
+        in_check = self.board.is_check()
+        
+        # 3. Escape check = very high priority
+        if self.board.is_check() and self.board.turn == chess.WHITE:
+            score += 5000
+        
+        piece = self.board.piece_at(move.to_square)
+        moving_piece = self.board.piece_at(move.from_square)
+        
+        # 4. CAPTURES with piece values
+        if self.board.is_capture(move) and piece:
+            piece_values = {
+                chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3.5,
+                chess.ROOK: 5, chess.QUEEN: 9
+            }
+            capture_value = piece_values.get(piece.piece_type, 1)
+            score += capture_value * 100
+        
+        self.board.pop()
+        
+        # 5. GIVE CHECK to opponent
+        self.board.push(move)
+        if self.board.is_check():
+            score += 200
+        self.board.pop()
+        
+        # 6. PAWN PROMOTION
+        if moving_piece and moving_piece.piece_type == chess.PAWN:
+            if (self.board.turn == chess.WHITE and move.to_square >= 56) or \
+               (self.board.turn == chess.BLACK and move.to_square < 8):
+                score += 5000
+        
+        # 7. CONTROL CENTER
+        center_squares = [chess.D4, chess.E4, chess.D5, chess.E5]
+        if move.to_square in center_squares:
+            score += 50
+        
+        # 8. PIECE DEVELOPMENT (not from back rank)
+        if moving_piece and moving_piece.piece_type != chess.KING:
+            from_rank = move.from_square // 8
+            to_rank = move.to_square // 8
+            # Reward moving forward
+            if self.board.turn == chess.WHITE and to_rank > from_rank:
+                score += 30
+            elif self.board.turn == chess.BLACK and to_rank < from_rank:
+                score += 30
+        
+        # 9. AVOID HANGING PIECES
+        self.board.push(move)
+        undefended = self._count_undefended_pieces()
+        self.board.pop()
+        
+        if undefended > 0:
+            score -= undefended * 200
+        
+        # 10. ATTACK OPPONENT'S PIECES
+        dest_piece = self.board.piece_at(move.to_square)
+        if dest_piece:
+            piece_values = {
+                chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3.5,
+                chess.ROOK: 5, chess.QUEEN: 9
+            }
+            score += piece_values.get(dest_piece.piece_type, 1) * 50
+        
+        return score
+    
+    def _count_undefended_pieces(self) -> int:
+        """Count pieces that are under attack and not defended."""
+        undefended = 0
+        for square in chess.SQUARES:
+            piece = self.board.piece_at(square)
+            if piece and piece.color == self.board.turn:
+                # Check if piece is attacked
+                attackers = list(self.board.attackers(not self.board.turn, square))
+                defenders = list(self.board.attackers(self.board.turn, square))
+                
+                if len(attackers) > len(defenders):
+                    piece_values = {
+                        chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3.5,
+                        chess.ROOK: 5, chess.QUEEN: 9
+                    }
+                    undefended += piece_values.get(piece.piece_type, 1)
+        return undefended
     
     def make_move(self, move_uci: str) -> bool:
         """Make a move on the board."""
