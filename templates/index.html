@@ -530,6 +530,63 @@
         .hidden-section {
             display: none;
         }
+
+        /* Promotion Modal */
+        .promotion-modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .promotion-modal.show {
+            display: flex;
+        }
+
+        .promotion-modal-content {
+            background: #252a33;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+            border: 2px solid #0066ff;
+        }
+
+        .promotion-modal-content h2 {
+            margin-bottom: 20px;
+            color: #0066ff;
+            font-size: 1.6em;
+        }
+
+        .promotion-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .promotion-btn {
+            padding: 15px;
+            font-size: 1.5em;
+            font-weight: bold;
+            background: #0066ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .promotion-btn:hover {
+            background: #0052cc;
+            transform: scale(1.05);
+        }
     
     </style>
 </head>
@@ -629,6 +686,19 @@
             <h2 id="gameOverTitle">Game Over</h2>
             <p id="gameOverText">Congratulations!</p>
             <button onclick="newGame()">Play Again</button>
+        </div>
+    </div>
+
+    <!-- Pawn Promotion Modal -->
+    <div id="promotionModal" class="promotion-modal">
+        <div class="promotion-modal-content">
+            <h2>♟ Choose Promotion Piece</h2>
+            <div class="promotion-buttons">
+                <button class="promotion-btn" onclick="selectPromotion('q')">♕ Queen</button>
+                <button class="promotion-btn" onclick="selectPromotion('r')">♖ Rook</button>
+                <button class="promotion-btn" onclick="selectPromotion('b')">♗ Bishop</button>
+                <button class="promotion-btn" onclick="selectPromotion('n')">♘ Knight</button>
+            </div>
         </div>
     </div>
 
@@ -757,7 +827,32 @@
                 validMoves = [];
                 renderBoard();
             } else {
-                const move = selectedSquare + square;
+                let move = selectedSquare + square;
+                
+                // Check for pawn promotion
+                const sourcePiece = getPieceAtSquare(currentGame.fen, 
+                    Math.floor((parseInt(selectedSquare[1]) - 1) / 8), 
+                    selectedSquare.charCodeAt(0) - 97);
+                
+                // Pawn is 'P' (white) or 'p' (black)
+                if (Math.abs(sourcePiece.charCodeAt(0) - 'p'.charCodeAt(0)) === 32 || 
+                    sourcePiece.toLowerCase() === 'p') {
+                    
+                    // Check if destination is promotion rank (row 1 or row 8)
+                    const destRow = parseInt(square[1]);
+                    if (destRow === 8 || destRow === 1) {
+                        // Ask user which piece to promote to
+                        const promotion = await showPromotionDialog();
+                        if (!promotion) {
+                            selectedSquare = null;
+                            validMoves = [];
+                            renderBoard();
+                            return;
+                        }
+                        move += promotion;
+                    }
+                }
+                
                 selectedSquare = null;
                 validMoves = [];
                 renderBoard();
@@ -902,6 +997,30 @@
             currentTimeLimit = minutes;
             document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
+        }
+
+        let promotionResolve = null;
+
+        async function showPromotionDialog() {
+            return new Promise((resolve) => {
+                promotionResolve = resolve;
+                document.getElementById('promotionModal').classList.add('show');
+                // Timeout to avoid hanging
+                setTimeout(() => {
+                    if (promotionResolve) {
+                        promotionResolve(null);
+                        promotionResolve = null;
+                    }
+                }, 30000);
+            });
+        }
+
+        function selectPromotion(piece) {
+            document.getElementById('promotionModal').classList.remove('show');
+            if (promotionResolve) {
+                promotionResolve(piece);
+                promotionResolve = null;
+            }
         }
 
         function showGameOver() {
