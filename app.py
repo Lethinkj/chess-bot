@@ -87,20 +87,23 @@ class ChessGame:
         best_move = None
         best_score = -float('inf')
         
-        # Priority 1: Block checkmate threats
-        legal_moves = list(self.board.legal_moves)
-        
-        for move in legal_moves:
+        for move in self.board.legal_moves:
             score = 0
             
-            # If we're in check, prioritize blocking/escaping
-            if self.board.is_check():
-                self.board.push(move)
-                if not self.board.is_check():
-                    score += 1000  # Strong preference to escape check
+            # 1. Checkmate in one move = instant win
+            self.board.push(move)
+            if self.board.is_checkmate():
                 self.board.pop()
+                return move.uci()
             
-            # Priority 2: Capture opponent pieces
+            # 2. Escape check
+            in_check_after = self.board.is_check()
+            self.board.pop()
+            
+            if self.board.is_check() and not in_check_after:
+                score += 1000  # High priority to escape check
+            
+            # 3. Capture opponent pieces (with piece values)
             if self.board.is_capture(move):
                 captured_piece = self.board.piece_at(move.to_square)
                 if captured_piece:
@@ -108,69 +111,29 @@ class ChessGame:
                         chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3,
                         chess.ROOK: 5, chess.QUEEN: 9
                     }
-                    capture_value = piece_values.get(captured_piece.piece_type, 1)
-                    score += capture_value * 100
-                    
-                    # But avoid capturing if we lose a more valuable piece
-                    moving_piece = self.board.piece_at(move.from_square)
-                    if moving_piece:
-                        moving_value = piece_values.get(moving_piece.piece_type, 1)
-                        
-                        # Check if our piece is defended
-                        self.board.push(move)
-                        defenders = len(list(self.board.attackers(not self.board.turn, move.to_square)))
-                        attackers = len(list(self.board.attackers(self.board.turn, move.to_square)))
-                        self.board.pop()
-                        
-                        if attackers > defenders and moving_value > capture_value:
-                            score -= 500  # Avoid bad trades
+                    score += piece_values.get(captured_piece.piece_type, 1) * 100
             
-            # Priority 3: Protect own pieces from capture
+            # 4. Give check to opponent
             self.board.push(move)
-            square = move.to_square
-            attacking_count = 0
-            for attacker_move in self.board.legal_moves:
-                if attacker_move.to_square == move.from_square:
-                    attacking_count += 1
-            
-            # Check if this move protects a piece
-            piece_at_from = self.board.piece_at(move.from_square)
-            if piece_at_from and piece_at_from.piece_type != chess.KING:
-                defenders = len(list(self.board.attackers(self.board.turn, move.from_square)))
-                if defenders > 0:
-                    score += 20  # Piece is now protected
-            
-            self.board.pop()
-            
-            # Priority 4: Check and checkmate
-            self.board.push(move)
-            if self.board.is_checkmate():
-                score += 10000  # Instant win
-            elif self.board.is_check():
+            if self.board.is_check():
                 score += 150
             self.board.pop()
             
-            # Priority 5: Control center squares
+            # 5. Control center
             center_squares = [chess.D4, chess.E4, chess.D5, chess.E5]
             if move.to_square in center_squares:
                 score += 30
             
-            # Priority 6: Develop pieces (move from back rank)
+            # 6. Develop pieces (move from back rank)
             if move.from_square < 8 or move.from_square >= 56:
-                score += 15
+                score += 10
             
-            # Priority 7: Avoid moving into attacks (except captures)
-            if not self.board.is_capture(move):
-                self.board.push(move)
-                if len(list(self.board.attackers(not self.board.turn, move.to_square))) > 0:
-                    moving_piece = self.board.piece_at(move.to_square)
-                    if moving_piece:
-                        piece_values = {
-                            chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3,
-                            chess.ROOK: 5, chess.QUEEN: 9
-                        }
-                        score -= piece_values.get(moving_piece.piece_type, 1) * 30
-                self.board.pop()
+            # 7. Pawn promotion
+            moving_piece = self.board.piece_at(move.from_square)
+            if moving_piece and moving_piece.piece_type == chess.PAWN:
+                if (self.board.turn == chess.WHITE and move.to_square >= 56) or \
+                   (self.board.turn == chess.BLACK and move.to_square < 8):
+                    score += 5000  # Very high priority
             
             if score > best_score:
                 best_score = score
