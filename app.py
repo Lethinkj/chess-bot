@@ -94,35 +94,26 @@ class ChessGame:
             if self.board.is_capture(move):
                 captured_piece = self.board.piece_at(move.to_square)
                 if captured_piece:
-                    # Value pieces: pawn=1, knight=3, bishop=3, rook=5, queen=9
                     piece_values = {
                         chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3,
                         chess.ROOK: 5, chess.QUEEN: 9
                     }
                     score += piece_values.get(captured_piece.piece_type, 1) * 100
             
-            # Avoid moving into capture
-            self.board.push(move)
-            if self.board.is_capture():
-                attacking_piece = self.board.piece_at(self.board.peek().to_square)
-                if attacking_piece:
-                    piece_values = {
-                        chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3,
-                        chess.ROOK: 5, chess.QUEEN: 9
-                    }
-                    score -= piece_values.get(attacking_piece.piece_type, 1) * 50
-            self.board.pop()
-            
-            # Check move
+            # Check for checks
             self.board.push(move)
             if self.board.is_check():
                 score += 50
             self.board.pop()
             
-            # Control center squares (d4, e4, d5, e5)
-            center_squares = {chess.D4, chess.E4, chess.D5, chess.E5}
+            # Control center squares
+            center_squares = [chess.D4, chess.E4, chess.D5, chess.E5]
             if move.to_square in center_squares:
                 score += 20
+            
+            # Prefer moving pieces out of back rank
+            if move.from_square < 8 or move.from_square >= 56:
+                score += 5
             
             if score > best_score:
                 best_score = score
